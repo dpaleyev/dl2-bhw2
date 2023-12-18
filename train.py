@@ -67,6 +67,13 @@ def main():
         os.mkdir("saved")
 
     for epoch in tqdm(range(DCGAN_config.num_epochs)):
+
+        D_x_log = []
+        D_G_z1_log = []
+        D_G_z2_log = []
+        errD_log = []
+        errG_log = []
+
         for i, data in enumerate(dataloader):
 
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -100,38 +107,47 @@ def main():
             D_G_z2 = output.mean().item()
             optimizerG.step()
 
-            log_output = {}
-            if i % 50 == 0:
-                log_output['D_x'] = D_x
-                log_output['D_G_z1'] = D_G_z1
-                log_output['D_G_z2'] = D_G_z2
-                log_output['errD'] = errD.item()
-                log_output['errG'] = errG.item()
-
-            if i == dataset.__len__() // DCGAN_config.batch_size - 1:
-                with torch.no_grad():
-                    fake = netG(fixed_noise).detach().cpu()
-                    image = vutils.make_grid(fake, padding=2, normalize=True)
-                    log_output['image'] = wandb.Image(image)
+            D_x_log.append(D_x)
+            D_G_z1_log.append(D_G_z1)
+            D_G_z2_log.append(D_G_z2)
+            errD_log.append(errD.item())
+            errG_log.append(errG.item())
 
 
-                    real_c = real_cpu.detach().cpu().clone()
-                    fake_c = fake.detach().cpu().clone()
-                    if real_c.shape[0] == fake_c.shape[0]:
-                        norm_ip(real_c, float(real_c.min()), float(real_c.max()))
-                        norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
-                        log_output['SSIM'] = ssim(real_c, fake_c).item()
+        log_output = {}
 
-                        dataset_real = CustomDataset(real_c)
-                        dataset_fake = CustomDataset(fake_c)
-                        dataloader_real = DataLoader(dataset_real, batch_size=64, collate_fn=collate_fn)
-                        dataloader_fake = DataLoader(dataset_fake, batch_size=64, collate_fn=collate_fn)
-                        fid_metric = FID()
-                        first_feats = fid_metric.compute_feats(dataloader_real)
-                        second_feats = fid_metric.compute_feats(dataloader_fake)
-                        log_output['FID'] = fid_metric(first_feats, second_feats)
-            if log_output:
-                wandb.log(log_output)
+        log_output['D_x'] = sum(D_x_log) / len(D_x_log)
+        log_output['D_G_z1'] = sum(D_G_z1_log) / len(D_G_z1_log)
+        log_output['D_G_z2'] = sum(D_G_z2_log) / len(D_G_z2_log)
+        log_output['errD'] = sum(errD_log) / len(errD_log)
+        log_output['errG'] = sum(errG_log) / len(errG_log)
+
+
+        with torch.no_grad():
+            fake = netG(fixed_noise).detach().cpu()
+            image = vutils.make_grid(fake, padding=2, normalize=True)
+            log_output['image'] = wandb.Image(image)
+
+            b = next(iter(dataloader))
+            real_cpu = b[0].to(device)
+
+            real_c = b.detach().cpu().clone()
+            fake_c = fake.detach().cpu().clone()
+            if real_c.shape[0] == fake_c.shape[0]:
+                norm_ip(real_c, float(real_c.min()), float(real_c.max()))
+                norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
+                log_output['SSIM'] = ssim(real_c, fake_c).item()
+
+                dataset_real = CustomDataset(real_c)
+                dataset_fake = CustomDataset(fake_c)
+                dataloader_real = DataLoader(dataset_real, batch_size=64, collate_fn=collate_fn)
+                dataloader_fake = DataLoader(dataset_fake, batch_size=64, collate_fn=collate_fn)
+                fid_metric = FID()
+                first_feats = fid_metric.compute_feats(dataloader_real)
+                second_feats = fid_metric.compute_feats(dataloader_fake)
+                log_output['FID'] = fid_metric(first_feats, second_feats)
+
+        wandb.log(log_output)
         torch.save(netG.state_dict(), f"saved/generator_{epoch}.pth")
         torch.save(netD.state_dict(), f"saved.discriminator_{epoch}.pth")
     wandb.finish()
