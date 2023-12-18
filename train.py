@@ -131,7 +131,7 @@ def main():
             b = next(iter(dataloader))
             real_cpu = b[0].to(device)
 
-            real_c = b.detach().cpu().clone()
+            real_c = real_cpu.detach().cpu().clone()
             fake_c = fake.detach().cpu().clone()
             if real_c.shape[0] == fake_c.shape[0]:
                 norm_ip(real_c, float(real_c.min()), float(real_c.max()))
