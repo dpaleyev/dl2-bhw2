@@ -5,7 +5,7 @@ import torchvision.utils as vutils
 import wandb
 import os
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from itertools import repeat
 from tqdm import tqdm
 from piq import ssim, FID
@@ -21,6 +21,19 @@ def inf_loop(data_loader):
 def norm_ip(img, low, high):
     img.clamp_(min=low, max=high)
     img.sub_(low).div_(max(high - low, 1e-5))
+
+def collate_fn(batch):
+    return {"images": batch}
+
+class CustomDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
 
 def main():
     dataset = dset.ImageFolder(root=DCGAN_config.dataroot,
@@ -91,21 +104,28 @@ def main():
                 log_output['D_G_z2'] = D_G_z2
                 log_output['errD'] = errD.item()
                 log_output['errG'] = errG.item()
-                real_c = real_cpu.detach().cpu().clone()
-                fake_c = fake.detach().cpu().clone()
-                norm_ip(real_c, float(real_c.min()), float(real_c.max()))
-                norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
-                log_output['SSIM'] = ssim(real_c, fake_c).item()
-                fid_metric = FID()
-                first_feats = fid_metric.compute_feats(real_c)
-                second_feats = fid_metric.compute_feats(fake_c)
-                log_output['FID'] = fid_metric(first_feats, second_feats).item()
             
             if i % 500 == 0:
                 with torch.no_grad():
                     fake = netG(fixed_noise).detach().cpu()
                 image = vutils.make_grid(fake, padding=2, normalize=True)
                 log_output['image'] = wandb.Image(image)
+
+                real_c = real_cpu.detach().cpu().clone()
+                fake_c = fake.detach().cpu().clone()
+                norm_ip(real_c, float(real_c.min()), float(real_c.max()))
+                norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
+                log_output['SSIM'] = ssim(real_c, fake_c).item()
+
+                dataset_real = CustomDataset(real_c)
+                dataset_fake = CustomDataset(fake_c)
+                dataloader_real = DataLoader(dataset_real, batch_size=DCGAN_config.batch_size, collate_fn=collate_fn)
+                dataloader_fake = DataLoader(dataset_fake, batch_size=DCGAN_config.batch_size, collate_fn=collate_fn)
+                fid_metric = FID()
+                first_feats = fid_metric.compute_feats(dataloader_real)
+                second_feats = fid_metric.compute_feats(dataloader_fake)
+                log_output['FID'] = fid_metric(first_feats, second_feats)
+                
 
             if log_output != {}:
                 wandb.log(log_output)
