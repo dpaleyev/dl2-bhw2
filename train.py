@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 import wandb
 import os
+import warnings
 
 from torch.utils.data import DataLoader, Dataset
 from itertools import repeat
@@ -12,6 +13,8 @@ from piq import ssim, FID
 
 from config import DCGAN_config
 from model import Generator, Discriminator, weights_init
+
+warnings.filterwarnings("ignore")
 
 def inf_loop(data_loader):
     """wrapper function for endless data loader."""
