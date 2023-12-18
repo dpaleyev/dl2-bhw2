@@ -23,7 +23,7 @@ def norm_ip(img, low, high):
     img.sub_(low).div_(max(high - low, 1e-5))
 
 def collate_fn(batch):
-    return {"images": batch}
+    return {"images": torch.stack(batch)}
 
 class CustomDataset(Dataset):
     def __init__(self, data):
@@ -119,8 +119,8 @@ def main():
 
                 dataset_real = CustomDataset(real_c)
                 dataset_fake = CustomDataset(fake_c)
-                dataloader_real = DataLoader(dataset_real, batch_size=DCGAN_config.batch_size, collate_fn=collate_fn)
-                dataloader_fake = DataLoader(dataset_fake, batch_size=DCGAN_config.batch_size, collate_fn=collate_fn)
+                dataloader_real = DataLoader(dataset_real, batch_size=64, collate_fn=collate_fn)
+                dataloader_fake = DataLoader(dataset_fake, batch_size=64, collate_fn=collate_fn)
                 fid_metric = FID()
                 first_feats = fid_metric.compute_feats(dataloader_real)
                 second_feats = fid_metric.compute_feats(dataloader_fake)
