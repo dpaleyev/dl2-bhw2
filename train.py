@@ -149,7 +149,7 @@ def main():
 
         wandb.log(log_output)
         torch.save(netG.state_dict(), f"saved/generator_{epoch}.pth")
-        torch.save(netD.state_dict(), f"saved.discriminator_{epoch}.pth")
+        torch.save(netD.state_dict(), f"saved/discriminator_{epoch}.pth")
     wandb.finish()
                 
 if __name__ == "__main__":

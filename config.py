@@ -12,7 +12,7 @@ class DCGANConfig:
     beta1 = 0.5
 
     latent_dim = 256
-    hidden_generator = 128
-    hidden_discriminator = 128
+    hidden_generator = 64
+    hidden_discriminator = 64
 
 DCGAN_config = DCGANConfig()
