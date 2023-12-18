@@ -5,9 +5,9 @@ class DCGANConfig:
     dataroot = "/notebooks/data"
     workers = 6
     image_size = 64
-    batch_size = 64
+    batch_size = 128
 
-    num_epochs = 50
+    num_epochs = 500
     learning_rate = 0.0002
     beta1 = 0.5
 
