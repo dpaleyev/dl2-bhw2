@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class DCGANConfig:
-    dataroot = "/notebooks/images"
+    dataroot = "/notebooks/data"
     workers = 6
     image_size = 64
     batch_size = 64

@@ -18,6 +18,10 @@ def inf_loop(data_loader):
     for loader in repeat(data_loader):
         yield from loader
 
+def norm_ip(img, low, high):
+    img.clamp_(min=low, max=high)
+    img.sub_(low).div_(max(high - low, 1e-5))
+
 def main():
     dataset = dset.ImageFolder(root=DCGAN_config.dataroot,
                            transform=transforms.Compose([
@@ -56,7 +60,7 @@ def main():
             b_size = real_cpu.size(0)
             label = torch.full((b_size,), 1, device=device)
             output = netD(real_cpu).view(-1)
-            errD_real = criterion(output, label)
+            errD_real = criterion(output, label.float())
             errD_real.backward()
             D_x = output.mean().item()
 
@@ -65,7 +69,7 @@ def main():
             fake = netG(noise)
             label.fill_(0)
             output = netD(fake.detach()).view(-1)
-            errD_fake = criterion(output, label)
+            errD_fake = criterion(output, label.float())
             errD_fake.backward()
             D_G_z1 = output.mean().item()
             errD = errD_real + errD_fake
@@ -75,7 +79,7 @@ def main():
             netG.zero_grad()
             label.fill_(1)
             output = netD(fake).view(-1)
-            errG = criterion(output, label)
+            errG = criterion(output, label.float())
             errG.backward()
             D_G_z2 = output.mean().item()
             optimizerG.step()
@@ -87,10 +91,14 @@ def main():
                 log_output['D_G_z2'] = D_G_z2
                 log_output['errD'] = errD.item()
                 log_output['errG'] = errG.item()
-                log_output['SSIM'] = ssim(real_cpu, fake).item()
+                real_c = real_cpu.detach().cpu().clone()
+                fake_c = fake.detach().cpu().clone()
+                norm_ip(real_c, float(real_c.min()), float(real_c.max()))
+                norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
+                log_output['SSIM'] = ssim(real_c, fake_c).item()
                 fid_metric = FID()
-                first_feats = fid_metric.compute_feats(real_cpu)
-                second_feats = fid_metric.compute_feats(fake)
+                first_feats = fid_metric.compute_feats(real_c)
+                second_feats = fid_metric.compute_feats(fake_c)
                 log_output['FID'] = fid_metric(first_feats, second_feats).item()
             
             if i % 500 == 0:
