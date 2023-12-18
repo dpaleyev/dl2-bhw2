@@ -11,7 +11,7 @@ class DCGANConfig:
     learning_rate = 0.0002
     beta1 = 0.5
 
-    latent_dim = 256
+    latent_dim = 100
     hidden_generator = 64
     hidden_discriminator = 64
 
