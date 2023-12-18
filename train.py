@@ -66,8 +66,8 @@ def main():
     if not os.path.exists("saved"):
         os.mkdir("saved")
 
-    for epoch in range(DCGAN_config.num_epochs):
-        for i, data in tqdm(enumerate(dataloader), desc=f"Epoch {epoch}"):
+    for epoch in tqdm(range(DCGAN_config.num_epochs)):
+        for i, data in enumerate(dataloader):
 
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             # train with real
