@@ -107,29 +107,31 @@ def main():
                 log_output['D_G_z2'] = D_G_z2
                 log_output['errD'] = errD.item()
                 log_output['errG'] = errG.item()
-            wandb.log(log_output)
-        
-        log_output = {}
-        with torch.no_grad():
-            fake = netG(fixed_noise).detach().cpu()
-            image = vutils.make_grid(fake, padding=2, normalize=True)
-            log_output['image'] = wandb.Image(image)
 
-            real_c = real_cpu.detach().cpu().clone()
-            fake_c = fake.detach().cpu().clone()
-            norm_ip(real_c, float(real_c.min()), float(real_c.max()))
-            norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
-            log_output['SSIM'] = ssim(real_c, fake_c).item()
+            if i == dataset.__len__() // DCGAN_config.batch_size - 1:
+                with torch.no_grad():
+                    fake = netG(fixed_noise).detach().cpu()
+                    image = vutils.make_grid(fake, padding=2, normalize=True)
+                    log_output['image'] = wandb.Image(image)
 
-            dataset_real = CustomDataset(real_c)
-            dataset_fake = CustomDataset(fake_c)
-            dataloader_real = DataLoader(dataset_real, batch_size=64, collate_fn=collate_fn)
-            dataloader_fake = DataLoader(dataset_fake, batch_size=64, collate_fn=collate_fn)
-            fid_metric = FID()
-            first_feats = fid_metric.compute_feats(dataloader_real)
-            second_feats = fid_metric.compute_feats(dataloader_fake)
-            log_output['FID'] = fid_metric(first_feats, second_feats)
-        wandb.log(log_output)
+
+                    real_c = real_cpu.detach().cpu().clone()
+                    fake_c = fake.detach().cpu().clone()
+                    if real_c.shape[0] == fake_c.shape[0]:
+                        norm_ip(real_c, float(real_c.min()), float(real_c.max()))
+                        norm_ip(fake_c, float(fake_c.min()), float(fake_c.max()))
+                        log_output['SSIM'] = ssim(real_c, fake_c).item()
+
+                        dataset_real = CustomDataset(real_c)
+                        dataset_fake = CustomDataset(fake_c)
+                        dataloader_real = DataLoader(dataset_real, batch_size=64, collate_fn=collate_fn)
+                        dataloader_fake = DataLoader(dataset_fake, batch_size=64, collate_fn=collate_fn)
+                        fid_metric = FID()
+                        first_feats = fid_metric.compute_feats(dataloader_real)
+                        second_feats = fid_metric.compute_feats(dataloader_fake)
+                        log_output['FID'] = fid_metric(first_feats, second_feats)
+            if log_output:
+                wandb.log(log_output)
         torch.save(netG.state_dict(), f"saved/generator_{epoch}.pth")
         torch.save(netD.state_dict(), f"saved.discriminator_{epoch}.pth")
     wandb.finish()
